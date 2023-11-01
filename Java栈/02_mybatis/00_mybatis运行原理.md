@@ -1,6 +1,53 @@
 ## 在springBoot中的配置
 
+> [超简单，Spring boot 配置mybatis](https://blog.csdn.net/zhoujiyu123/article/details/79786847)
+
+`mybatis`的配置分为三种方式：`mybatis-config.xml`、`application.properties` 、`applications.yaml`
+
+其中着重介绍 `applications.yaml`中`mybatis`的配置，相关配置如下：
+
+```yaml
+spring:
+  # 以下是关于数据源的配置，其中使用了数据库连接池Druid
+  datasource:
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/runoob
+    type: com.alibaba.druid.pool.DruidDataSource
+    
+# mybatis
+mybatis-plus:
+  # mapper.xml文件所在的路径
+  mapper-locations: classpath*:/mapper/**/*.xml
+  #实体扫描，多个package用逗号或者分号分隔
+  # 一般在domain中抽象程序中使用的实体
+  typeAliasesPackage: com.example.domain
+  typeEnumsPackage: com.example.domain.enums.**
+  global-config:
+    #数据库相关配置
+    db-config:
+      #主键类型  AUTO:"数据库ID自增", INPUT:"用户输入ID", ID_WORKER:"全局唯一ID (数字类型唯一ID)", UUID:"全局唯一ID UUID";
+      id-type: AUTO
+      #字段策略 IGNORED:"忽略判断",NOT_NULL:"非 NULL 判断"),NOT_EMPTY:"非空判断"
+      field-strategy: NOT_NULL
+      #驼峰下划线转换
+      column-underline: true
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+    banner: false
+  #原生配置
+  configuration:
+    # map-underscore-to-camel-case: false
+    default-enum-type-handler: org.apache.ibatis.type.EnumOrdinalTypeHandler
+    cache-enabled: false
+    call-setters-on-nulls: true
+    jdbc-type-for-null: 'null'
+```
+
 ### 配置中的注意事项
+
+主要注意mapper-locations、typeAliasesPackage以及typeEnumsPackage三个变量的配置。否则App启动后无法找到后续创建的mappre和抽象实体。
 
 ## Mapper的开发规则
 

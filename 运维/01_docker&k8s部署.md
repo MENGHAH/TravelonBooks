@@ -1,6 +1,6 @@
 # docker相关
 ## 1. docker安装
-参考文档：https://www.runoob.com/docker/centos-docker-install.html
+> [CentOS Docker 安装](https://www.runoob.com/docker/centos-docker-install.html)
 
 安装相关依赖
 ```shell
@@ -22,7 +22,27 @@ sudo yum install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 安装指定版本：sudo yum install docker-ce-20.10.0 docker-ce-cli-20.10.0 containerd.io
 ```
 
+查看docker版本
+
+```shell
+docker version
+```
+
+启动docker并设置开机自启动
+
+```shell
+sudo systemctl start docker 
+sudo systemctl enable docker
+```
+
+停止docker：systemctl stop docker
+
+重启docker：service docker restart 
+
+
+
 ## 2. docker卸载
+
 删除旧docker相关内容
 ```shell
 sudo yum remove docker \
@@ -33,7 +53,8 @@ sudo yum remove docker \
     docker-latest-logrotate \
     docker-logrotate \
     docker-engine
-sudo yum remove docker-c
+    
+sudo yum remove docker-c*
 ```
 
 删除镜像、容器、配置文件等
@@ -41,13 +62,13 @@ sudo yum remove docker-c
 rm -rf /var/lib/docker
 ```
 ## 3. docker常用指令
+
+> [Docker常用命令总结](https://www.cnblogs.com/jiujuan/p/13758351.html)
+
 Docker相关指令 
 - 查看当前仓库支持的docker版本： yum list docker-ce --showduplicates | sort -r
 - 降低docker版本到18.06.3.ce-3.el7： yum downgrade --setopt=obsoletes=0 -y docker-ce-20.10.0-3.el7 docker-ce-cli-20.10.0-3.el7 containerd.io
-- 停止docker：systemctl stop docker
-- 启动docker：systemctl start docker （查看版本：docker version）
-- 重启docker：service docker restart 
-- 设置开机启动：systemctl enable docker
+- 
   卸载docker：
   安装docker sudo yum install -y yum-utils \ device-mapper-persistent-data \ lvm2
   设置为阿里云：sudo yum-config-manager \ --add-repo \ https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
@@ -145,7 +166,7 @@ kubeadm init \
 apiserver-advertise-address：设定为本地IP
 kubernetes-version: 根据自身安装版本设定
 
-**init执行太慢或卡住解决方案：**
+**init执行太慢或卡住的解决方案：**
 
 1. 执行关闭swap后再次执行init
 
@@ -180,7 +201,6 @@ kubernetes-version: 根据自身安装版本设定
    > {
    >  "registry-mirrors": ["https://docker.mirrors.ustc.edu.cn","https://docker.mirrors.tuna.tsinghua.edu.cn"]
    > }
-   > 
    > 
    > 重启docker
    > sudo service docker restart
