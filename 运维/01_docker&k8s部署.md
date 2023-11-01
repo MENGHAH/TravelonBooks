@@ -48,12 +48,16 @@ Docker相关指令
 - 启动docker：systemctl start docker （查看版本：docker version）
 - 重启docker：service docker restart 
 - 设置开机启动：systemctl enable docker
-卸载docker：
-安装docker sudo yum install -y yum-utils \ device-mapper-persistent-data \ lvm2
-设置为阿里云：sudo yum-config-manager \ --add-repo \ https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
-sudo yum install docker-ce docker-ce-cli containerd.io docker-compose-plugin
-查看版本：sudo yum list docker-ce --showduplicates | sort -r 安装指定版本：sudo yum install docker-ce-20.10.0 docker-ce-cli-20.10.0 containerd.io
-# K8S部署
+  卸载docker：
+  安装docker sudo yum install -y yum-utils \ device-mapper-persistent-data \ lvm2
+  设置为阿里云：sudo yum-config-manager \ --add-repo \ https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+  sudo yum install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  查看版本：sudo yum list docker-ce --showduplicates | sort -r 安装指定版本：sudo yum install docker-ce-20.10.0 docker-ce-cli-20.10.0 containerd.io
+
+# K8S相关
+
+## 1. K8S部署
+
 1. 查看 ip
 ```shell
 ip addr 
@@ -141,39 +145,46 @@ kubeadm init \
 apiserver-advertise-address：设定为本地IP
 kubernetes-version: 根据自身安装版本设定
 
-init执行太慢或卡住解决方案：
-> 1.	https://blog.csdn.net/jiangjun_dao519/article/details/126278502?spm=1001.2101.3001.6661.1&utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-126278502-blog-130469200.235%5Ev38%5Epc_relevant_sort_base3&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-126278502-blog-130469200.235%5Ev38%5Epc_relevant_sort_base3&utm_relevant_index=1
-> 2.	https://www.cnblogs.com/renshengdezheli/p/16686769.html
+**init执行太慢或卡住解决方案：**
 
 1. 执行关闭swap后再次执行init
 
 
-2. 安装上帖子中方案执行
-- 修改docker镜像源
-https://www.jianshu.com/p/dfd30e94b517
-https://blog.csdn.net/WangAnJiao/article/details/131661953
+2. 按照以下经验贴执行
 
-```shell
-sudo vim /etc/docker/daemon.json（如果没有此文件就新建一个）
-添加
-{
- "registry-mirrors": ["https://docker.mirrors.ustc.edu.cn"]
-}
-也可以使用清华源
-{
- "registry-mirrors": ["https://docker.mirrors.tuna.tsinghua.edu.cn"]
-}
-重启docker
-sudo service docker restart
-测试
-docker search nginx
-```
-- 拉取依赖
-```shell
-docker pull coredns/coredns
-docker tag coredns/coredns:latest
-docker tag coredns/coredns:latest registry.aliyuncs.com/google_containers/coredns/coredns:v1.8.0
-```
+   > - [【K8S集群安装二】K8S集群安装步骤](https://blog.csdn.net/jiangjun_dao519/article/details/126278502?spm=1001.2101.3001.6661.1&utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-126278502-blog-130469200.235%5Ev38%5Epc_relevant_sort_base3&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-126278502-blog-130469200.235%5Ev38%5Epc_relevant_sort_base3&utm_relevant_index=1)
+   >
+   > - [Centos7 安装部署Kubernetes(k8s)集群](https://www.cnblogs.com/renshengdezheli/p/16686769.html)
+
+   上述经验贴中介绍如何通过docker手动拉取init过程中需要的镜像以实现init的过程。
+
+   ```shell
+   1. docker pull coredns/coredns
+   2. docker tag coredns/coredns:latest
+   3. docker tag coredns/coredns:latest registry.aliyuncs.com/google_containers/coredns/coredns:v1.8.0
+   ```
+
+   
+
+3. 检查docker是否需要配置代理以访问镜像源
+
+   如果docker无法正确的网络连接， 会出现“Failed to pull images” 的问题。
+
+   > 在这个过程中也可能设计修改镜像源的问题，可以参考下帖
+   >
+   > - [使用清华大学的 Docker 镜像源](https://blog.csdn.net/WangAnJiao/article/details/131661953)
+   >
+   > ```shell
+   > sudo vim /etc/docker/daemon.json（如果没有此文件就新建一个）
+   > 添加
+   > {
+   >  "registry-mirrors": ["https://docker.mirrors.ustc.edu.cn","https://docker.mirrors.tuna.tsinghua.edu.cn"]
+   > }
+   > 
+   > 
+   > 重启docker
+   > sudo service docker restart
+   > ```
 
 
 
