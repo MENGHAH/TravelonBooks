@@ -42,24 +42,21 @@ sudo systemctl enable docker
 
 
 ## 2. docker卸载
+> [卸载并重装docker](https://blog.csdn.net/qq_37171817/article/details/107760339)
 
-删除旧docker相关内容
+查看已安装的docker
 ```shell
-sudo yum remove docker \
-    docker-client \
-    docker-client-latest \
-    docker-common \
-    docker-latest \
-    docker-latest-logrotate \
-    docker-logrotate \
-    docker-engine
-    
-sudo yum remove docker-c*
+yum list installed|grep docker
 ```
 
-删除镜像、容器、配置文件等
+删除docker
 ```shell
-rm -rf /var/lib/docker
+yum -y remove docker.x86_64 docker-client.x86_64 docker-common.x86_64
+```
+
+删除已有镜像、容器以及配置文件等
+```shell
+rm -rf  /var/lib/docker
 ```
 ## 3. docker常用指令
 
@@ -68,12 +65,66 @@ rm -rf /var/lib/docker
 Docker相关指令 
 - 查看当前仓库支持的docker版本： yum list docker-ce --showduplicates | sort -r
 - 降低docker版本到18.06.3.ce-3.el7： yum downgrade --setopt=obsoletes=0 -y docker-ce-20.10.0-3.el7 docker-ce-cli-20.10.0-3.el7 containerd.io
-- 
-  卸载docker：
+- 卸载docker：
   安装docker sudo yum install -y yum-utils \ device-mapper-persistent-data \ lvm2
   设置为阿里云：sudo yum-config-manager \ --add-repo \ https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
   sudo yum install docker-ce docker-ce-cli containerd.io docker-compose-plugin
   查看版本：sudo yum list docker-ce --showduplicates | sort -r 安装指定版本：sudo yum install docker-ce-20.10.0 docker-ce-cli-20.10.0 containerd.io
+
+## 4. docker构建私有仓库
+
+拉取registry
+
+```shell
+docker -D pull registry
+docker -D pull hell-world(该操作是为了后续测试方便，所以先把hello-world镜像下载下来)
+```
+
+启动registry
+
+```shell
+docker run -d -p 5000:5000 --name="my-registry" --restart=always -v /root/docker/registry/:/var/lib/registry/ registry 
+
+docker ps -a // 可以看到my-registry已经启动
+```
+
+配置本地hosts
+
+```shell
+vim /etc/hsots
+
+添加如下映射关系：
+本地IP my-registry
+
+添加完成后保存退出
+```
+
+配置docker的daemon.json
+
+```shell
+vim /etc/docker/daemon.json
+
+添加如下内容：
+"insecure-registries": ["本地IP:5000", "my-registry:5000"]
+
+保存退出并重启docker
+sudo systemctl daemon-reload
+sudo systemctl docker restart
+```
+
+push镜像到私有仓库my-registry
+
+```shell
+首先对目标镜像重命名
+docker tag hello-world:latest my-registry:5000/hello-world:latest
+
+push镜像
+docker push my-registry:5000/hello-world:latest
+```
+
+
+
+<font color=red>注意: 在push镜像时，如果要使用别名（my-registry:5000）而非本地IP（本地ip:5000），一定要在/etc/hosts中配置映射关系</font>
 
 # K8S相关
 
