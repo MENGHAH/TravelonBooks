@@ -39,7 +39,7 @@ sudo systemctl enable docker
 
 重启docker：service docker restart 
 
-
+登录已运行的容器：docker exec -it ID /bin/sh   
 
 ## 2. docker卸载
 > [卸载并重装docker](https://blog.csdn.net/qq_37171817/article/details/107760339)
@@ -83,9 +83,9 @@ docker -D pull hell-world(该操作是为了后续测试方便，所以先把hel
 启动registry
 
 ```shell
-docker run -d -p 5000:5000 --name="my-registry" --restart=always -v /root/docker/registry/:/var/lib/registry/ registry 
+docker run -d -p 5000:5000 --name="bcmt-registry" --restart=always -v /root/docker/registry/:/var/lib/registry/ registry 
 
-docker ps -a // 可以看到my-registry已经启动
+docker ps -a // 可以看到bcmt-registry已经启动
 ```
 
 配置本地hosts
@@ -94,7 +94,7 @@ docker ps -a // 可以看到my-registry已经启动
 vim /etc/hsots
 
 添加如下映射关系：
-本地IP my-registry
+本地IP bcmt-registry
 
 添加完成后保存退出
 ```
@@ -105,26 +105,38 @@ vim /etc/hsots
 vim /etc/docker/daemon.json
 
 添加如下内容：
-"insecure-registries": ["本地IP:5000", "my-registry:5000"]
+"insecure-registries": ["本地IP:5000", "bcmt-registry:5000"]
 
 保存退出并重启docker
 sudo systemctl daemon-reload
 sudo systemctl docker restart
 ```
 
-push镜像到私有仓库my-registry
+push镜像到私有仓库bcmt-registry
 
 ```shell
 首先对目标镜像重命名
-docker tag hello-world:latest my-registry:5000/hello-world:latest
+docker tag hello-world:latest bcmt-registry:5000/hello-world:latest
 
 push镜像
-docker push my-registry:5000/hello-world:latest
+docker push bcmt-registry:5000/hello-world:latest
 ```
 
 
 
-<font color=red>注意: 在push镜像时，如果要使用别名（my-registry:5000）而非本地IP（本地ip:5000），一定要在/etc/hosts中配置映射关系</font>
+<font color=red>注意: 在push镜像时，如果要使用别名（bcmt-registry:5000）而非本地IP（本地ip:5000），一定要在/etc/hosts中配置映射关系。在docker配置了代理后，也需要在代理中去除别名的路由代理</font>
+
+
+
+查看私有仓库里的镜像
+
+```shell
+curl 127.0.0.1:5000/v2/_catalog/
+```
+
+删除私有仓库里的镜像
+
+
 
 # K8S相关
 
