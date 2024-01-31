@@ -254,7 +254,19 @@ sed -i "s/yyyy/xxxx/g" |xargs grep yyyy -rnl ./
 比如：
 sed -i "s/MYSQLTP:root:123456/MYSQLTP:freeswitch:freeswitch/g" |xargs grep "MYSQLTP:root:123456" -rnl ./
 ```
+## 6.3 用户赋root权限
+
+```shell
+chown admin:admin -R export/
+
+```
+
+
+
+
+
 # 7. freeswitch
+
 (1) 查看freeswitch的注册信息
 ```
 sofia status profile internal
