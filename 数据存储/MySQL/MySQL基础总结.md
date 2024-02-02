@@ -61,3 +61,164 @@ select no from student where no = 'test'
 [简单聊聊MySQL中的六种日志](https://juejin.cn/post/7077577452372885535)
 
 MySQL中存在着以下几种日志：重写日志（redo log）、回滚日志（undo log）、二进制日志（bin log）、错误日志（error log）、慢查询日志（slow query log）、一般查询日志（general log）。
+
+**(1) redo log**
+
+redo log是一种基于磁盘的数据结构，用来在MySQL宕机情况下将不完整的事务执行数据纠正，redo log记录事务执行后的状态。
+
+当事务开始后，redo log就开始产生，并且随着事务的执行不断写入redo log file中。redo log file中记录了xxx页做了xx修改的信息，我们都知道数据库的更新操作会在内存中先执行，最后刷入磁盘。redo log就是为了**恢复更新了内存但是由于宕机等原因没有刷入磁盘**中的那部分数据。
+
+**(2) undo log**
+
+undo log主要用来回滚到某一个版本，是一种逻辑日志。**undo log记录的是修改之前的数据**，比如：当delete一条记录时，undo log中会记录一条对应的insert记录，从而保证能恢复到数据修改之前。在执行事务回滚的时候，就可以通过undo log中的记录内容并以此进行回滚。
+
+undo log还可以提供多版本并发控制下的读取（**MVCC**）。
+
+**(3) bin log**
+
+MySQL的bin log日志是用来记录MySQL中增删改时的记录日志。简单来讲，就是当你的一条sql操作对数据库中的内容进行了更新，就会增加一条bin log日志。查询操作不会记录到bin log中。bin log最大的用处就是进行**主从复制，以及数据库的恢复。**
+
+**(4) error log**
+
+error log主要记录MySQL在启动、关闭或者运行过程中的错误信息，在MySQL的配置文件my.cnf中，可以通过log-error=/var/log/mysqld.log 执行mysql错误日志的位置。
+
+**(5) slow query log**
+
+慢查询日志用来记录执行时间超过指定阈值的SQL语句，慢查询日志往往用于优化生产环境的SQL语句。可以通过以下语句查看慢查询日志是否开启以及日志的位置：
+
+```sql
+ show variables like "%slow_query%";
+```
+
+慢查询日志的常用配置参数如下：
+
+```sql
+slow_query_log=1  #是否开启慢查询日志，0关闭，1开启
+slow_query_log_file=/usr/local/mysql/mysql-8.0.20/data/slow-log.log  #慢查询日志地址（5.6及以上版本）
+long_query_time=1 #慢查询日志阈值，指超过阈值时间的SQL会被记录
+log_queries_not_using_indexes  #表示未走索引的SQL也会被记录
+```
+
+分析慢查询日志一般会用专门的日志分析工具。找出慢SQL后可以通过explain关键字进行SQL分析，找出慢的原因。
+
+**(6) general log**
+
+general log 记录了客户端连接信息以及执行的SQL语句信息，通过MySQL的命令
+
+```sql
+show variables like '%general_log%';
+```
+
+可以查看general log是否开启以及日志的位置。
+
+general log 可通过配置文件启动，配置参数如下：
+
+```sql
+general_log = on
+general_log_file = /usr/local/mysql/mysql-8.0.20/data/hecs-78422.log
+```
+
+普通查询日志会记录增删改查的信息，因此一般是关闭的。
+
+# MVCC机制
+
+## 概念
+
+MVCC即多版本并发控制。MVCC在MySQL InnoDB中的实现主要是为了提高数据库并发性能，用更好的方式去处理读-写冲突，做到即使有读写冲突时，也能做到**不加锁**，非阻塞并发读。
+
+## 当前读和快照读
+
+**(1) 当前读**
+
+像select lock in share mode(共享锁), select for update ; update, insert ,delete(排他锁)这些操作都是一种当前读，为什么叫当前读？就是它读取的是记录的最新版本，读取时还要保证其他并发事务不能修改当前记录，会对读取的记录进行加锁
+
+**(2) 快照读**
+
+像不加锁的select操作就是快照读，即不加锁的非阻塞读；快照读的前提是隔离级别不是串行级别，串行级别下的快照读会退化成当前读；之所以出现快照读的情况，是基于提高并发性能的考虑，快照读的实现是基于多版本并发控制，即MVCC,可以认为MVCC是行锁的一个变种，但它在很多情况下，避免了加锁操作，降低了开销；既然是基于多版本，即快照读可能读到的并不一定是数据的最新版本，而有可能是之前的历史版本
+
+
+
+# 主从复制原理
+
+- [主从复制原理](https://dongzl.github.io/2020/03/15/12-MySQL-Master-Slave-Replication/index.html)
+
+### 什么是主从复制
+
+MySQL 主从复制是指数据可以从一个 MySQL 数据库服务器主节点复制到一个或多个从节点。MySQL 默认采用异步复制方式，这样从节点不用一直访问主服务器来更新自己的数据，数据的更新可以在远程连接上进行，从节点可以复制主数据库中的所有数据库或者特定的数据库，或者特定的表。
+
+### 为什么需要主从复制
+
+- 提高数据库读写性能，提升系统吞吐量
+
+在业务复杂的系统中，如果有一条 SQL 语句的执行需要锁表，导致 MySQL 暂时不能提供读的服务，那么就很影响运行中的业务，使用主从复制，让主库负责写，从库负责读，这样即使主库出现了锁表的情景，通过读从库也可以保证业务的正常运作。
+
+- 做数据库热备
+- 架构扩展需要
+
+业务量越来越大，I/O 访问频率过高，单机无法满足，此时做多库的存储，降低磁盘I/O 访问的频率，提升整个数据库性能。
+
+### MySQL 的复制原理
+
+**原理**：
+
+- master 服务器将数据的改变记录二进制 binlog 日志，当 master 上的数据发生改变时，则将其改变写入二进制日志中；
+- slave 服务器会在一定时间间隔内对 master 二进制日志进行探测其是否发生改变，如果发生改变，则开始一个 I/OThread 请求 master 二进制事件；
+- 同时主节点为每个 I/O 线程启动一个 dump 线程，用于向其发送二进制事件，并保存至从节点本地的中继日志中，从节点将启动 SQL 线程从中继日志中读取二进制日志，在本地重放，使得其数据和主节点的保持一致，最后 I/OThread 和 SQLThread 将进入睡眠状态，等待下一次被唤醒。
+
+**也就是**：
+
+- 从库会生成**两个线程**,一个 I/O 线程,一个 SQL 线程；
+- I/O 线程会去请求主库的 binlog，并将得到的 binlog 写到本地的 relay-log（中继日志）文件中；主库会生成一个 log dump 线程,用来给从库 I/O 线程传 binlog；
+- SQL 线程，会读取 relay log 文件中的日志，并解析成sql语句逐一执行。
+
+**注意**：
+
+- master 将操作语句记录到 binlog 日志中，然后授予 slave 远程连接的权限（master 一定要开启 binlog 二进制日志功能；通常为了数据安全考虑，slave 也开启binlog功能）；
+- slave 开启两个线程：IO 线程和 SQL 线程。其中：IO 线程负责读取 master 的 binlog 内容到中继日志 relay log 里；SQL 线程负责从 relay log 日志里读出 binlog 内容，并更新到 slave 的数据库里，这样就能保证 slave 数据和 master 数据保持一致了；
+- MySQL 复制至少需要两个 MySQL 的服务，当然 MySQL 服务可以分布在不同的服务器上，也可以在一台服务器上启动多个服务；
+- MySQL复制最好确保 master 和 slave 服务器上的 MySQL 版本相同（如果不能满足版本一致，那么要保证 master 主节点的版本低于 slave 从节点的版本）；
+- master 和 slave 两节点间时间需同步。
+
+![img](https://cdn.jsdelivr.net/gh/dongzl/dongzl.github.io@hexo/source/images/2020/12-MySQL-Master-Slave-Replication/MySQL-Master-Slave-Replication-01.jpeg)
+
+**具体步骤**：
+
+- 从库通过手工执行 change master to 语句连接主库，提供了连接的用户一切条件（user 、password、port、ip），并且让从库知道，二进制日志的起点位置（file名 position 号）start slave；
+- 从库的 IO 线程和主库的 dump 线程建立连接；
+- 从库根据 change master to 语句提供的 file 名和 position 号，IO 线程向主库发起 binlog 的请求；
+- 主库 dump 线程根据从库的请求，将本地 binlog 以 events 的方式发给从库IO 线程；
+- 从库 IO 线程接收 binlog events，并存放到本地 relay-log 中，传送过来的信息，会记录到 `master.info` 中；
+- 从库 SQL 线程应用 relay-log，并且把应用过的记录到 `relay-log.info` 中，默认情况下，已经应用过的 relay 会自动被清理 purge。
+
+### MySQL 主从复制延时分析
+
+MySQL 的主从复制都是单线程的操作，主库对所有 DDL 和 DML 产生的日志写进 binlog，由于 binlog 是顺序写，所以效率很高，slave 的 SQL thread 线程将主库的 DDL 和 DML 操作事件在 slave 中重放。DML 和 DDL 的 IO 操作是随机的，不是顺序，所以成本要高很多，另一方面，由于 SQL thread 也是单线程的，当主库的并发较高时，产生的 DML 数量超过 slave 的 SQL thread 所能处理的速度，或者当 slave 中有大型 query 语句产生了锁等待，那么延时就产生了。
+
+**解决方案**：
+
+- 业务的持久层实现采用分库架构，mysql 服务可以水平扩展，分散压力；
+- 单个库读写分离，一主多从，主写从读，分散压力；这样从库压力可能会比主库高，保护主库。
+- 服务的基础架构在业务系统和mysql之间加入memcache或者redis 的cache层，降低mysql读压力。
+- 不同业务的mysql物理上放在不同的机器，分散压力。
+- 使用比主库更好的硬件设备作为slave，mysql压力小，延迟自然会变小。
+- 使用更加强劲的硬件设备。
+
+### MySQL 主从复制的形式
+
+- 一主一从
+- 主主复制
+- 一主多从
+- 多主一从
+- 级联复制
+
+# 读写分离
+
+主服务器处理写操作以及实时性要求比较高的读操作，而从服务器处理读操作。
+
+读写分离能提高性能的原因在于:
+
+- 主从服务器负责各自的读和写，极大程度缓解了锁的争用；
+- 从服务器可以使用 MyISAM，提升查询性能以及节约系统开销；
+- 增加冗余，提高可用性。
+
+读写分离常用代理方式来实现，代理服务器接收应用层传来的读写请求，然后决定转发到哪个服务器。
