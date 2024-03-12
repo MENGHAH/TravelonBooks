@@ -94,6 +94,38 @@ lock_guard是一个互斥量包装程序，它提供了一种方便的RALL（Res
 - 不能中途解锁，必须等作用域结束才解锁
 - 不能复制
 
+```c++
+#include <iostream>
+#include <thread>
+#include <mutex>
+
+std::mutex mtx;     // 全局互斥锁
+int gi = 0;         //多线程共享变量
+
+void thread_mutex_lockguard(const int i){
+    std::lock_guard<std::mutex> lock(mtx);  //持有互斥锁
+    //std::unique_lock<std::mutex> lock(mtx); //持有互斥锁（可以用unique_lock替代lock_guard）
+    gi += i;   //操作共享变量
+    std::cout << "thread_mutex_lockguard! tid:[" << std::this_thread::get_id() << "] gi:" << gi << std::endl;
+    // lock离开作用域时，自动释放互斥锁
+}
+
+
+int main(int argc, char* argv[]){
+    // lock_guard 简易加锁(析构自释放)
+    LOG(INFO) << "lock_guard:";
+    std::thread thg[10];
+    for(int i=0;i<10;i++){
+        thg[i] = std::thread(thread_mutex_lockguard, i);
+        thg[i].detach();
+    }
+    for(int i=0;i<10;i++){
+        thg[i].join();
+    }
+    std::cout << "thread_mutex_lockguard gi:" << gi << std::endl;
+}
+```
+
 # 3. std::unique_lock
 
 unique_lock是一个通用的互斥量锁定包装器，它允许延迟锁定，限时深度锁定，递归锁定，锁定所有权的转移以及与condition variable条件变量一起使用。
@@ -108,11 +140,57 @@ unique_lock是一个通用的互斥量锁定包装器，它允许延迟锁定，
 - 不可复制，可移动（可通过move转到另一个scope中生存，增加了管理难度）
 - condition variable条件变量需要该类型的锁作为参数（此场景必须使用unique_lock）
 
-# 4. 如何选择两种锁
+```c++
+#include <mutex>
+#include <thread>
+#include <chrono>
+#include <iostream>
+#include <string>
+using namespace std;
+struct bank_account//银行账户
+{
+  explicit bank_account(string name, int money)
+  {
+    sName = name;
+    iMoney = money;
+  }
 
-lock_guard简单易用，unique_lock功能强大但管理成本略高。如果lock_guard能满足的场景尽量用lock_guard，否则可以考虑unique_lock。
+  string sName;
+  int iMoney;
+  mutex mMutex;//账户都有一个锁mutex
+};
+void transfer( bank_account &from, bank_account &to, int amount )//这里缺少一个from==to的条件判断个人觉得
+{
+  unique_lock<mutex> lock1( from.mMutex, defer_lock );//defer_lock表示延迟加锁，此处只管理mutex
+  unique_lock<mutex> lock2( to.mMutex, defer_lock );
+  lock( lock1, lock2 );//lock一次性锁住多个mutex防止deadlock
+  from.iMoney -= amount;
+  to.iMoney += amount;
+  cout << "Transfer " << amount << " from "<< from.sName << " to " << to.sName << endl;
+}
+int main(){
+  bank_account Account1( "User1", 100 );
+  bank_account Account2( "User2", 50 );
+  thread t1( [&](){ transfer( Account1, Account2, 10 ); } );//lambda表达式
+  thread t2( [&](){ transfer( Account2, Account1, 5 ); } );
+  t1.join();
+  t2.join();
+}
+```
 
-# 5. 配合条件变量的使用
+上述加锁流程也可以通过lock_guard来实现
+
+```C++
+// 先持有2个互斥锁
+lock( from.mMutex, to.mMutex );
+// 再将两个锁托管给2个lock_guard管理
+lock_guard<mutex> lock1( from.mMutex, adopt_lock );//adopt_lock表示mutex已经上锁，lock1将拥有from.mMutex
+lock_guard<mutex> lock2( to.mMutex, adopt_lock );
+```
+
+
+
+# 4. 配合条件变量的使用
 
 ```c++
 #include <iostream>
@@ -153,7 +231,9 @@ int main(int argc, char* argv[]){
 }
 ```
 
+# 5. 如何选择两种锁
 
+lock_guard简单易用，unique_lock功能强大但管理成本略高。如果lock_guard能满足的场景尽量用lock_guard，否则可以考虑unique_lock。
 
 # 参考文章
 
