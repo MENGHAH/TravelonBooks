@@ -188,9 +188,7 @@ lock_guard<mutex> lock1( from.mMutex, adopt_lock );//adopt_lock表示mutex已经
 lock_guard<mutex> lock2( to.mMutex, adopt_lock );
 ```
 
-
-
-# 4. 配合条件变量的使用
+# 4. unique_lock配合条件变量的使用
 
 ```c++
 #include <iostream>
