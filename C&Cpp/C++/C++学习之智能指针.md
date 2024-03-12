@@ -28,13 +28,13 @@ weak_ptr是为了配合shared_ptr而引入的一种智能指针，它指向一�
 
 **(1) 如何使用weak_ptr**
 
-weak_ptr并没有重载operator->和operator *操作符，因此不可直接通过weak_ptr使用对象，典型的用法是调用其lock函数来获得shared_ptr示例，进而访问原始对象。
+weak_ptr并没有重载operator->和operator *操作符，因此不可直接通过weak_ptr使用对象，典型的用法是调用其lock函数来获得shared_ptr实例，进而访问原始对象。
 
 **(2)如何判断weak_ptr指向对象是否存在**
 
 > weak_ptr可以提升为shared_ptr
 
-既然weak_ptr并不改变其所共享的shared_ptr实例的引用计数，那就可能存在weak_ptr指向的对象被释放掉这种情况。这时，我们就不能使用weak_ptr直接访问对象。那么我们如何判断weak_ptr指向对象是否存在呢？C++中提供了lock函数来实现该功能。如果对象存在，lock()函数返回一个指向共享对象的shared_ptr，否则返回一个空shared_ptr。
+既然weak_ptr并不改变其所共享的shared_ptr实例的引用计数，那就可能存在weak_ptr指向的对象被释放掉这种情况。这时，就不能使用weak_ptr直接访问对象。那么如何判断weak_ptr指向对象是否存在？C++中提供了lock函数来实现该功能。如果对象存在，lock()函数返回一个指向共享对象的shared_ptr，否则返回一个空shared_ptr。
 
 ```C++
 class A{
@@ -55,8 +55,6 @@ int main() {
     }
 }
 ```
-
-
 
 # Q 其他问题
 
