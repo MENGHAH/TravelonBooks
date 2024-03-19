@@ -1,3 +1,15 @@
+# std::promise
+
+
+
+# std::packaged_task
+
+
+
+# std::async
+
+
+
 # std::future
 
 std::future是C++的一种模板类，它代表了一个异步操作的结果。通过使用std::future，我们可以将一个异步操作封装成一个对象，然后在需要的时候获取结果。通常，std::future是与另一个线程协同工作的结果。
