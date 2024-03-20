@@ -87,6 +87,107 @@ shared_ptr对象所管理的资源存放在堆上，它可以由多个shared_ptr
 
 基于weak_ptr的智能指针提升来判断对象是否已经析构，进而解决相互引用问题
 
+```cpp
+#include<iostream>
+#include <memory>
+#include <vector>
+using namespace std;
+
+class B;
+class A {
+public:
+    A(){
+        cout << "A::A()" << endl;
+    }
+ 
+    ~A(){
+        cout << "A::~A()" << endl;
+    }
+ 
+    void setbPtr(shared_ptr<B> p){
+        _bPtr = p;
+    }
+
+   void print_name(){
+      cout << "Iam A" << endl;
+   }
+ 
+private:
+    weak_ptr<B> _bPtr;
+};
+ 
+ 
+class B {
+public:
+    B(){
+        cout << "B::B()" << endl;
+    }
+ 
+    ~B(){
+        cout << "B::~B()" << endl;
+    }
+ 
+    void setaPtr(shared_ptr<A> p){
+        _aPtr = p;
+    }
+ 
+private:
+    weak_ptr<A> _aPtr; // 解决循环引用问题
+};
+
+class C
+{
+public:
+   void push_back_a(std::shared_ptr<A> &a){
+      a_vec.push_back(a);
+   }
+
+   void iterate_over_item(){
+      std::vector<std::weak_ptr<A>>::iterator iter= a_vec.begin();
+      for(; iter != a_vec.end(); ++iter){
+         shared_ptr<A> iterm_a(iter->lock()); // 做弱指针的强制拉升，但是引用计数加一
+         cout << "use_count of iterm_a: " << iterm_a.use_count() << endl;
+         if(iterm_a){
+            iterm_a->print_name();
+         }
+         // 使用结束后引用计数减一
+      }
+   }
+
+private:
+   std::vector<std::weak_ptr<A>> a_vec; // 如果此处使用shared_ptr会把入队对象的引用计数加一
+   
+};
+ 
+int main() {
+    shared_ptr<A> a(new A);
+    shared_ptr<B> b(new B);
+    shared_ptr<C> c(new C);
+
+    cout << a.use_count() << endl;
+    cout << b.use_count() << endl;
+ 
+    a->setbPtr(b);
+    b->setaPtr(a);
+
+    cout << a.use_count() << endl;
+    cout << b.use_count() << endl;
+    cout << "********************" << endl;
+    shared_ptr<A> a_0(new A);
+    shared_ptr<A> a_1(new A);
+
+    c->push_back_a(a_0);
+    c->push_back_a(a_1);
+    c->iterate_over_item();
+    cout << a_0.use_count() << endl;
+    cout << a_1.use_count() << endl;
+
+    return 0;
+}
+```
+
+
+
 # 参考文档
 
 [C++ 智能指针的正确使用方式](https://www.cyhone.com/articles/right-way-to-use-cpp-smart-pointer/)
