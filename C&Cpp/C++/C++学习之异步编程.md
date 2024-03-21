@@ -1,5 +1,72 @@
 # std::promise
 
+std::promise 是 C++11 标准库中提供的异步编程工具之一，它通常与 std::future 一起使用，**用来实现线程间的异步通信**。promise 提供了一个承诺（promise），表示在某个时间点一定会有一个值或一个异常被设置。promise 可以在一个线程中设置一个值，而另一个线程中可以通过 std::future 来访问这个值。通常的做法是，创建一个 promise 对象，然后通过 promise 对象获取一个 future 对象，将 future 对象传递到另一个线程中去，另一个线程将值或异常设置到 promise 对象中，随后原线程可以通过 future 对象来获取值或异常。
+
+```c++
+#include <vector>
+#include <thread>
+#include <future>
+#include <numeric>
+#include <iostream>
+#include <chrono>
+
+using namespace std::chrono::seconds;
+
+// 异步求和
+void Accumulate(std::vector<int>::iterator first,
+    std::vector<int>::iterator last,
+    std::promise<int> accumulate_promise)
+{
+    int sum = std::accumulate(first, last, 0);
+    accumulate_promise.set_value(sum);  // Notify future
+}
+ 
+// 线程1设置值
+void Do_work1(std::promise<int> &barrier)
+{
+    //为了突出效果，可以使线程休眠5s
+    std::this_thread::sleep_for(seconds(3));
+    int iVal = 233;
+    std::cout << "传入数据(int): " << iVal << std::endl;
+    barrier.set_value(iVal); // 设置共享状态的值, 此处和线程new_work_thread保持同步.
+}
+ 
+// 线程2获取值
+void Do_work2(std::future<int> &fun)
+{
+    //阻塞函数，直到收到相关联的std::promise对象传入的数据
+    auto iVal = fun.get();		//iVal = 233
+    std::cout << "收到数据(int): " << iVal << std::endl;
+}
+
+int main()
+{
+    // 演示如何使用promise<int>在线程之间传输结果
+    std::vector<int> numbers = { 1, 2, 3, 4, 5, 6 };
+    std::promise<int> accumulate_promise; // 主线程生成一个 std::promise<int> 对象.
+    std::future<int> accumulate_future = accumulate_promise.get_future(); // 和 future 关联.
+    std::thread work_thread(Accumulate, numbers.begin(), numbers.end(),
+        std::move(accumulate_promise)); // 求和
+ 
+    // future::get() will wait until the future has a valid result and retrieves it.
+    // Calling wait() before get() is not needed
+    // accumulate_future.wait();  // wait for result
+    std::cout << "result=" << accumulate_future.get() << '\n'; // 异步获取最后的结果
+    work_thread.join();  // wait for thread completion
+ 
+    //演示如何使用promise<int>在线程之间表示状态。
+    std::promise<int> barrier; // 生成一个 std::promise<int> 对象.
+    std::future<int> barrier_future = barrier.get_future(); // 和 future 关联.
+    std::thread new_work1_thread(Do_work1, std::ref(barrier));
+    std::thread new_work2_thread(Do_work2, std::ref(barrier_future));
+ 
+    new_work1_thread.join();
+    new_work2_thread.join();
+    system("pause");
+    return 0;
+}
+```
+
 
 
 # std::packaged_task
