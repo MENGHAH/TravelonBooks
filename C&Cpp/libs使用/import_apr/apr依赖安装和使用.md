@@ -14,46 +14,68 @@ make && make install
 #include <algorithm>
 #include <chrono>
 #include <thread>
+#include <vector>
 
 #include <apr.h>
 #include <apr_pools.h>
 #include <apr_file_io.h>
 #include <stdlib.h>
+
+#define THREAD_POOL_SIZE 6
 #define POOL_NUMBER 32
-#define ALLOCAT_NUMBER 32
+#define ALLOCAT_NUMBER 10
+#define BUFFER_SIZE 1024*1024*32
 
 using std::chrono::seconds;
 
 typedef struct recorder_channel_t{
-    char buf[1024*1024*100];
+    char buf[BUFFER_SIZE];
     char *channel_id;
 };
 
-void aprDemo()
+void aprDemo(int sleep_time)
 {
 	apr_pool_t *pool[POOL_NUMBER];
     apr_status_t status;
     std::string console_out;
     
+    std::cout << console_out << "thread_id: " << std::this_thread::get_id() << std::endl;
+    
     for(int i=0; i<POOL_NUMBER; i++)
     {
         console_out = "pool[" + std::to_string(i) + "]";
-        std::cout << console_out << std::endl;
-        pool[i] = NULL;
-        status = apr_pool_create(&pool[i], NULL);
-        std::cout << status << std::endl;
-        for(int j=0; j<ALLOCAT_NUMBER; j++){
-            std::this_thread::sleep_for(seconds(1));
-            recorder_channel_t* temp = static_cast<recorder_channel_t*>(apr_palloc(pool[i], sizeof(recorder_channel_t)));
-            memset(temp->buf, '0', 1024*1024*100);
+        {
+            pool[i] = NULL;
+            status = apr_pool_create(&pool[i], NULL);
+            printf("address: %p", pool[i]);
+            std::cout << status << std::endl;
+            for(int j=0; j<ALLOCAT_NUMBER; j++){
+                std::this_thread::sleep_for(seconds(sleep_time));
+                recorder_channel_t* temp = static_cast<recorder_channel_t*>(apr_palloc(pool[i], sizeof(recorder_channel_t)));
+                memset(temp->buf, '0', BUFFER_SIZE);
+            }
+            apr_pool_destroy(pool[i]);
         }
-        apr_pool_destroy(pool[i]);
+    }
+}
+
+void threadPoolCreate()
+{
+    std::vector<std::thread> th_pool;
+    for(int i=0; i<THREAD_POOL_SIZE; i++)
+    {
+        std::thread th(aprDemo, i);
+        th_pool.push_back(std::move(th));
+    }
+
+    for (auto& thread : th_pool){
+        thread.join();
     }
 }
 
 int main() {
     apr_initialize();
-    aprDemo();
+    threadPoolCreate();
     return 0;
 }
 
