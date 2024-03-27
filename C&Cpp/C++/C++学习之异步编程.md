@@ -71,9 +71,99 @@ int main()
 
 # std::packaged_task
 
+```C++
+#include <iostream>     // std::cout
+#include <future>       // std::packaged_task, std::future
+#include <chrono>       // std::chrono::seconds
+#include <thread>       // std::thread, std::this_thread::sleep_for
+
+// count down taking a second for each value:
+int countdown (int from, int to) {
+    for (int i=from; i!=to; --i) {
+        std::cout << i << '\n';
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    std::cout << "Finished!\n";
+    return from - to;
+}
+
+int main ()
+{
+    std::packaged_task<int(int,int)> task(countdown); // 设置 packaged_task
+    std::future<int> ret = task.get_future(); // 获得与 packaged_task 共享状态相关联的 future 对象.
+    std::thread th(std::move(task), 10, 0);   //创建一个新线程完成计数任务.
+    int value = ret.get();                    // 等待任务完成并获取结果.
+    std::cout << "The countdown lasted for " << value << " seconds.\n";
+    th.join();
+    return 0;
+}
+```
+
 
 
 # std::async
+
+> [C++11之std::async使用介绍](https://blog.csdn.net/c_base_jin/article/details/79506347)
+
+```cpp
+//计算A函数
+int calculateA()
+{
+    //延迟1ms
+    this_thread::sleep_for(std::chrono::milliseconds(1));
+    return 1;
+}
+
+//计算B函数
+int calculateB()
+{
+    //延迟2ms
+    this_thread::sleep_for(std::chrono::milliseconds(2));
+    return 2;
+}
+
+//计算C函数
+int calculateC()
+{
+    //延迟3ms
+    this_thread::sleep_for(std::chrono::milliseconds(3));
+    return 3;
+}
+
+//传统统计三者的和
+void test_common_time()
+{
+    TIME_POINT t1 = STEADY_CLOCK::now();
+    
+    int c = calculateA() + (calculateB() + calculateC());
+    
+    TIME_POINT t2 = STEADY_CLOCK::now();
+    
+    cout << "test_common_time result is :" <<  c << "  ";
+    print_diff_time(t1, t2);
+}
+
+// 使用异步线程
+void test_feture_time()
+{
+	int sum = 0;
+	
+	TIME_POINT t11 = STEADY_CLOCK::now();
+	
+	//异步调用
+	future<int> f1 = std::async(calculateA);
+	future<int> f2 = std::async(calculateB);
+	future<int> f3 = std::async(calculateC);
+	//get()函数会阻塞，直到结果返回
+	sum = f1.get() + f2.get() + f3.get();
+	
+	TIME_POINT t22 = STEADY_CLOCK::now();
+	
+	cout << "test_feture_time result is :" <<  sum << "  ";
+	
+	print_diff_time(t11, t22);       
+}
+```
 
 
 
