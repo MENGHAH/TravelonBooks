@@ -271,3 +271,25 @@ kubernetes-version: 根据自身安装版本设定
 
 
 
+## 2. worker重置
+
+1. 在准备移除的 worker 节点上执行
+
+```perl
+kubeadm reset -f
+```
+
+2. 在 master 节点上执行
+
+```csharp
+kubectl get nodes -o wide
+```
+
+3. 删除worker节点，在 master 节点上执行
+
+```cpp
+kubectl delete node demo-worker-x-x
+```
+
+> 将 demo-worker-x-x 替换为要移除的 worker 节点的名字
+> worker 节点的名字可以通过在节点master上执行 kubectl get nodes 命令获得
