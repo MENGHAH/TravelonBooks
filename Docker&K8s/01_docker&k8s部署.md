@@ -269,6 +269,18 @@ kubernetes-version: 根据自身安装版本设定
    > sudo service docker restart
    > ```
 
+12. 安装calico插件
+
+```shell
+grep -w "image" calico.yaml
+
+for i in calico/cni:v3.25.0 calico/pod2daemon-flexvol:v3.25.0 calico/node:v3.25.0 calico/kube-controllers:v3.25.0 ; do docker pull $i ; done
+
+kubectl apply -f calico.yaml
+
+
+```
+
 
 
 ## 2. worker重置
