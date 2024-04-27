@@ -1,16 +1,28 @@
-# RTP、RTCP、RTSP 概念
+# 参考文档
 
-**用一句简单的话总结：RTSP发起/终结流媒体、RTP传输流媒体数据 、RTCP对RTP进行控制、同步。**之所以以前对这几个有点分不清，是因为CTC标准里没有对RTCP进行要求，因此在标准RTSP的代码中没有看到相关的部分。而在私有RTSP的代码中，有关控制、同步等，是在RTP Header中做扩展定义实现的。**另外，RFC3550可以看作是RFC1889的升级文档，只看RFC3550即可。**
+[RTP/RTCP RTSP协议讲解](https://zhuanlan.zhihu.com/p/689187765)
 
-# RTP
+# 1. RTP/RTCP RTSP协议讲解
 
-RTP（Real-time Transport Protocol)是用于Internet上针对多媒体数据流的一种传输层协议。RTP协议详细说明了在互联网上传递音频和视频的标准数据包格式。RTP协议常用于流媒体系统（配合RTCP协议），视频会议和一键通（Push to Talk）系统（配合H.323或SIP），使它成为IP电话产业的技术基础。RTP协议和RTP控制协议RTCP一起使用，而且它是建立在UDP协议上的。
-RTP 本身并没有提供按时发送机制或其它服务质量（QoS）保证，它依赖于低层服务去实现这一过程。 RTP 并不保证传送或防止无序传送，也不确定底层网络的可靠性。 RTP 实行有序传送， RTP 中的序列号允许接收方重组发送方的包序列，同时序列号也能用于决定适当的包位置，例如：在视频解码中，就不需要顺序解码。
-RTP 由两个紧密链接部分组成： RTP--传送具有实时属性的数据；RTP 控制协议（RTCP）--监控服务质量并传送正在进行的会话参与者的相关信息。
+<font color=red>**用一句简单的话总结：RTSP发起/终结流媒体、RTP传输流媒体数据 、RTCP对RTP进行控制、同步。**</font>
 
-## RTP header 
+## 1.1 RTP
 
-<img src="../images/protocol/rtp-header.png" style="height:250px"/>
+### 1.1.1 RTP概述
+
+RTP（Real-time Transport Protocol）是用于 Internet 上针对多媒体数据流的一种传输层协议，RTP 协议和 RTP 控制协议 RTCP 一起使用。**RTP 被定义为在一对一或一对多的传输情况下工作，其目的是提供时间信息和实现流同步**。RTP 的典型应用建立在 UDP 上，但也可以在 TCP 或 ATM 等其他协议之上工作。
+
+<font color=red>**RTP 本身只保证实时数据的传输，并不能为按顺序传送数据包提供可靠的传送机制，也不提供流量控制或拥塞控制，它依靠 RTCP 提供这些服务。**</font>**rtp 协议就是提供了时间标签，序列号以及其它的结构用于控制适时数据的流放。**
+
+在流的概念中” 时间标签” 是最重要的信息。发送端依照即时的采样在数据包里隐蔽的设置了时间标签。在接受端收到数据包后，就依照时间标签按照正确的速率恢复成原始的适时的数据。不同的媒体格式调时属性是不一样的。
+
+ rtp 本身并不负责同步，rtp 只是传输层协议，为了简化运输层处理，提高该层的效率。 将部分运输层协议功能（比如流量控制）上移到应用层完成。同步就是属于应用层协议完成的。它没有运输层协议的完整功能，不提供任何机制来保证实时地传输数据，不支持资源预留，也不保证服务质量。rtp 报文甚至不包括长度和报文边界的描述。**同时 rtp 协议的数据报文和控制报文的使用相邻的不同端口，这样大大提高了协议的灵活性和处理的简单性**。
+
+rtp 协议和 udp 二者共同完成运输层协议功能。udp 协议只是传输数据包，不管数据包传输的时间顺序。rtp 的协议数据单元是用 udp 分组来承载的。在承载 rtp 数据包的时候，有时候一帧数据被分割成几个包具有相同的时间标签，则可以知道时间标签并不是必须的。而 udp 的多路复用让 rtp 协议利用支持显式的多点投递，可以满足多媒体会话的需求。
+
+### 1.1.2 RTP 协议的报文结构
+
+<img src="E:/03_日常学习&工作/TravelonBooks/images/protocol/rtp-header.png" style="height:250px"/>
 
 一个RTP 包 由 RTP header + payload组成。如图所示，RT(D)P header 最小为 12 bytes；红色部分为可选字段。字段的含义分别如下：
 
@@ -26,35 +38,53 @@ RTP 由两个紧密链接部分组成： RTP--传送具有实时属性的数据�
 - **CSRC (Contributing source)** 在 MCU 混流时使用，表示混流出的新的音视频流的 SSRC 是由哪些源 SSRC 贡献的。根据上述 CC 得知，我们最多可以同时混 15 路音视频流。
 - **Extension header** 即头部扩展，包含了音视频的一些额外信息，比如视频旋转角度。
 
-
-
 当应用程序建立一个RTP会话时，应用程序将确定一对目的传输地址。目的传输地址由一个网络地址和一对端口组成，有两个端口：一个给RTP包，一个给RTCP包，使得RTP/RTCP数据能够正确发送。RTP数据发向偶数的UDP端口，而对应的控制信号RTCP数据发向相邻的奇数UDP端口（偶数的UDP端口+1），这样就构成一个UDP端口对。 RTP的发送过程如下，接收过程则相反。
 
 1) RTP协议从上层接收流媒体信息码流（如H.263），封装成RTP数据包；RTCP从上层接收控制信息，封装成RTCP控制包。
 
 2. RTP将RTP数据包发往UDP端口对中偶数端口；RTCP将RTCP控制包发往UDP端口对中的接收端口。
 
-# RTCP
+## 1.2 RTCP
 
-实时传输控制协议（Real-time Transport Control Protocol或RTP Control Protocol或简写RTCP）是实时传输协议（RTP）的一个姐妹协议。RTCP为RTP媒体流提供信道外（out-of-band）控制。RTCP本身并不传输数据，但和RTP一起协作将多媒体数据打包和发送。RTCP定期在流多媒体会话参加者之间传输控制数据。RTCP的主要功能是为RTP所提供的服务质量（Quality of Service）提供反馈。
+### 1.2.1 RTCP概述
 
-RTCP收集相关媒体连接的统计信息，例如：传输字节数，传输分组数，丢失分组数，jitter，单向和双向网络延迟等等。网络应用程序可以利用RTCP所提供的信息试图提高服务质量，比如限制信息流量或改用压缩比较小的编解码器。RTCP本身不提供数据加密或身份认证。SRTCP可以用于此类用途。
+RTCP（Real-time Transport Control Protocol ），和 RTP 协议一起使用，而且它是建立在 UDP 协议上的。RTCP 负责管理传输质量在当前应用进程之间交换控制信息。**在 RTP 会话期间，各参与者周期性地传送 RTCP 包，包中含有已发送的数据包的数量、丢失的数据包的数量等统计资料**。因此，**服务器可以利用这些信息动态地改变传输速率，甚至改变有效载荷类型**。
 
-## RTCP header
+RTP 和 RTCP 配合使用，能以有效的反馈和最小的开销使传输效率最佳化，故特别适合传送网上的实时数据。根据用户间的数据传输反馈信息，可以制定流量控制的策略，而会话用户信息的交互，可以制定会话控制的策略。
 
-在传统的实时通讯过程中，RT(D)P 协议占用偶数位的端口，而 RTCP 协议占用随后的奇数位端口。不过如果接收方的 SDP 中包含 `rtcp-mux` 字段，即表明接收方支持 RT(D)P 协议和 RTCP 协议共用同一个端口，即多路复用。在 Chrome 57 版本已经强制开启了 `rtcp-mux` 。
+### 1.2.2 RTCP协议的报文结构
 
-对于 RTCP 包而言，我们不只要关注 header 的结构，还要关注具体的 report block 内容。不过我们先来看一个典型的 RTCP header 结构，如下图所示：
+> 在传统的实时通讯过程中，RTP 协议占用偶数位的端口，而 RTCP 协议占用随后的奇数位端口。不过如果接收方的 SDP 中包含 `rtcp-mux` 字段，即表明接收方支持 RTP 协议和 RTCP 协议共用同一个端口，即多路复用。在 Chrome 57 版本已经强制开启了 `rtcp-mux` 。
 
-<img src="../images/protocol/rtcp-header.png"/>
+对于 RTCP 包，我们不只要关注 header 的结构，还要关注具体的 report block 内容。一个典型的 RTCP header 结构，如下图所示：
 
-RTCP header 的固定大小为 8 bytes，其中 Version、P、SSRC 的含义同上述 RTP header 相同，在此不与赘述。其他几个字段的含义分别如下：
+<img src="E:\03_日常学习&工作\TravelonBooks\images\protocol\rtcp-header.png"/>
+
+RTCP header 的固定大小为 8 bytes，其中 Version、P、SSRC 的含义同 RTP header 相同。其他几个字段的含义分别如下：
 
 - **RC (Reception report count)** 表示当前 RTCP 包有几个 block，显然最多只能有 32 个。
-- **PT (Packet type)** 表示 RTCP 包的类型，比如 SR=200、RR=201（SR、RR 参见下文）。
+- <font color=red>**PT (Packet type)** 表示 RTCP 包的类型，比如 **SR=200、RR=201**（SR、RR 参见下文）。</font>
 - **Length** 等于整个 RTCP 包的长度**减一**（使得 Length = 0 是合法的），其值包含 header 的长度和所有 padding 占用的空间长度。值的单位是以 32 位字长（32-bit words）描述的。
 
-## SR & RR
+
+
+> 其他补充：
+>
+> 在 RTCP 通信控制中，RTCP 协议的功能是通过不同的 RTCP 数据报来实现的，主要有如下几种类型：
+>
+> - **SR：发送端报告**，所谓发送端是指发出 RTP 数据报的应用程序或者终端，发送端同时也可以是接收端。
+>
+> - **RR：接收端报告**，所谓接收端是指仅接收但不发送 RTP 数据报的应用程序或者终端。
+>
+> - SDES：源描述，主要功能是作为会话成员有关标识信息的载体，如用户名、邮件地址、电话号码等，此外还具有向会话成员传达会话控制信息的功能。
+>
+> - BYE：通知离开，主要功能是指示某一个或者几个源不再有效，即通知会话中的其他成员自己将退出会话。
+>
+> - APP：由应用程序自己定义，解决了 RTCP 的扩展性问题，并且为协议的实现者提供了很大的灵活性。
+>
+> 
+
+### 1.2.3 SR & RR
 
 PT=SR=200 时，表示这个 RTCP 包记录的是**发送方**的质量数据（Sender Report）；PT=RR=201 时，表示这个 RTCP 包记录的是**接收方**的质量数据（Receiver Report）。SR 和 RR 的结构几乎一致，除了 RR 没有 sender info。先来看 SR 的结构：
 
@@ -118,20 +148,7 @@ SR 和 RR 具有相同的 report block 结构，其中各个字段的含义分�
 
 细心的读者可能会发现，report block 中的字段基本都与接收方有关，即与 RR 有关。事实也的确如此，RR 的 report block 内容只与 SR 的 header、sender info 以及接收时间有关，因此 SR 的 report block 是可有可无的。比如笔者在实际工作中使用的 mediasoup（SFU）便是选择自己消费掉所有收到的 SR，而它生成的新的 SR 并不包含 report block [8](https://mthli.xyz/rtp-introduction/#fn-8)。
 
-# SRTP & SRTCP
+## 1.3 RTSP
 
-安全实时传输协议（Secure Real-time Transport Protocol或SRTP）是在实时传输协议（Real-time Transport Protocol或RTP）基础上所定义的一个协议，旨在为单播和多播应用程序中的实时传输协议的数据提供加密、消息认证、完整性保证和重放保护。它是由David Oran（思科）和Rolf Blom（爱立信）开发的，并最早由IETF于2004年3月作为RFC 3711发布。
+### 1.3.4 RTP和RTSP的关系
 
-由于实时传输协议和可以被用来控制实时传输协议的会话的实时传输控制协议（RTP Control Protocol或RTCP）有着紧密的联系，安全实时传输协议同样也有一个伴生协议，它被称为安全实时传输控制协议（Secure RTCP或SRTCP）；安全实时传输控制协议为实时传输控制协议提供类似的与安全有关的特性，就像安全实时传输协议为实时传输协议提供的那些一样。
-
-在使用实时传输协议或实时传输控制协议时，使不使用安全实时传输协议或安全实时传输控制协议是可选的；但即使使用了安全实时传输协议或安全实时传输控制协议，所有它们提供的特性（如加密和认证）也都是可选的，这些特性可以被独立地使用或禁用。唯一的例外是在使用安全实时传输控制协议时，必须要用到其消息认证特性。
-
-# RTSP
-
-RTSP（Real Time Streaming Protocol）是用来控制声音或影像的多媒体串流协议，并允许同时多个串流需求控制，传输时所用的网络通讯协定并不在其定义的范围内，服务器端可以自行选择使用TCP或UDP来传送串流内容，它的语法和运作跟HTTP 1.1类似，但并不特别强调时间同步，所以比较能容忍网络延迟。而前面提到的允许同时多个串流需求控制（Multicast），除了可以降低服务器端的网络用量，更进而支持多方视讯会议（Video Conference）。 因为与HTTP1.1的运作方式相似，所以代理服务器 (Proxy) 的快取功能 (Cache) 也同样适用于RTSP，并因RTSP具有重新导向功能，可视实际负载情况来转换提供服务的服务器，以避免过大的负载集中于同一服务器而造成延迟。
-
-
-
-# 参考文献
-
-- [RTP、RTCP、RTSP 概念](https://developer.aliyun.com/article/48045)
