@@ -231,45 +231,42 @@ kubernetes-version: 根据自身安装版本设定
 
 **init执行太慢或卡住的解决方案：**
 
-1. 执行关闭swap后再次执行init
+(1) 执行关闭swap后再次执行init
 
+(2) 按照以下经验贴执行
 
-2. 按照以下经验贴执行
+> - [【K8S集群安装二】K8S集群安装步骤](https://blog.csdn.net/jiangjun_dao519/article/details/126278502?spm=1001.2101.3001.6661.1&utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-126278502-blog-130469200.235%5Ev38%5Epc_relevant_sort_base3&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-126278502-blog-130469200.235%5Ev38%5Epc_relevant_sort_base3&utm_relevant_index=1)
+>
+> - [Centos7 安装部署Kubernetes(k8s)集群](https://www.cnblogs.com/renshengdezheli/p/16686769.html)
 
-   > - [【K8S集群安装二】K8S集群安装步骤](https://blog.csdn.net/jiangjun_dao519/article/details/126278502?spm=1001.2101.3001.6661.1&utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-126278502-blog-130469200.235%5Ev38%5Epc_relevant_sort_base3&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-1-126278502-blog-130469200.235%5Ev38%5Epc_relevant_sort_base3&utm_relevant_index=1)
-   >
-   > - [Centos7 安装部署Kubernetes(k8s)集群](https://www.cnblogs.com/renshengdezheli/p/16686769.html)
+上述经验贴中介绍如何通过docker手动拉取init过程中需要的镜像以实现init的过程。
 
-   上述经验贴中介绍如何通过docker手动拉取init过程中需要的镜像以实现init的过程。
+```shell
+1. docker pull coredns/coredns
+2. docker tag coredns/coredns:latest
+3. docker tag coredns/coredns:latest registry.aliyuncs.com/google_containers/coredns/coredns:v1.8.0
+```
 
-   ```shell
-   1. docker pull coredns/coredns
-   2. docker tag coredns/coredns:latest
-   3. docker tag coredns/coredns:latest registry.aliyuncs.com/google_containers/coredns/coredns:v1.8.0
-   ```
+(3) 检查docker是否需要配置代理以访问镜像源
 
-   
+如果docker无法正确的网络连接， 会出现“Failed to pull images” 的问题。
 
-3. 检查docker是否需要配置代理以访问镜像源
+> 在这个过程中也可能设计修改镜像源的问题，可以参考下帖
+>
+> - [使用清华大学的 Docker 镜像源](https://blog.csdn.net/WangAnJiao/article/details/131661953)
+>
+> ```shell
+> sudo vim /etc/docker/daemon.json（如果没有此文件就新建一个）
+> 添加
+> {
+>  "registry-mirrors": ["https://docker.mirrors.ustc.edu.cn","https://docker.mirrors.tuna.tsinghua.edu.cn"]
+> }
+> 
+> 重启docker
+> sudo service docker restart
+> ```
 
-   如果docker无法正确的网络连接， 会出现“Failed to pull images” 的问题。
-
-   > 在这个过程中也可能设计修改镜像源的问题，可以参考下帖
-   >
-   > - [使用清华大学的 Docker 镜像源](https://blog.csdn.net/WangAnJiao/article/details/131661953)
-   >
-   > ```shell
-   > sudo vim /etc/docker/daemon.json（如果没有此文件就新建一个）
-   > 添加
-   > {
-   >  "registry-mirrors": ["https://docker.mirrors.ustc.edu.cn","https://docker.mirrors.tuna.tsinghua.edu.cn"]
-   > }
-   > 
-   > 重启docker
-   > sudo service docker restart
-   > ```
-
-12. 安装calico插件
+12. 安装calico网络插件
 
 ```shell
 grep -w "image" calico.yaml
@@ -277,8 +274,6 @@ grep -w "image" calico.yaml
 for i in calico/cni:v3.25.0 calico/pod2daemon-flexvol:v3.25.0 calico/node:v3.25.0 calico/kube-controllers:v3.25.0 ; do docker pull $i ; done
 
 kubectl apply -f calico.yaml
-
-
 ```
 
 
@@ -305,3 +300,26 @@ kubectl delete node demo-worker-x-x
 
 > 将 demo-worker-x-x 替换为要移除的 worker 节点的名字
 > worker 节点的名字可以通过在节点master上执行 kubectl get nodes 命令获得
+
+## 3. calico删除
+
+master执行
+
+```shell
+kubectl delete -f calico.yaml
+
+// 检查所有节点上的网络，看看是否存在Tunl0，有的话删除Tunl0
+ip a
+modprobe -r ipip
+
+// 删除配置文件
+查看 /etc/cni/net.d/ 目录下是否存在相关文件，如：10-calico.conflist， calico-kubeconfig，calico-tls等，需要删除。
+```
+
+
+
+# temp
+
+安装和删除calico网络插件
+
+https://blog.csdn.net/xingzuo_1840/article/details/119580448
