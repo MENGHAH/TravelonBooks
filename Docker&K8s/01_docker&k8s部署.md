@@ -323,3 +323,14 @@ modprobe -r ipip
 安装和删除calico网络插件
 
 https://blog.csdn.net/xingzuo_1840/article/details/119580448
+
+## 1. 常用指令
+
+```shell
+kubectl describe node node-name
+
+// 查看pod状态
+kubectl describe pod calico-node-zm27t -n kube-system
+
+```
+
