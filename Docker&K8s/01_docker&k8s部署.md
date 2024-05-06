@@ -327,10 +327,24 @@ https://blog.csdn.net/xingzuo_1840/article/details/119580448
 ## 1. 常用指令
 
 ```shell
+// 查看node日志
 kubectl describe node node-name
+
+// 查看pod日志
+kubectl -n kube-system describe pod “pod-name”
 
 // 查看pod状态
 kubectl describe pod calico-node-zm27t -n kube-system
+
+// kubelet日志查看
+journalctl -u kubelet
+
+// 重启kubectrl
+sudo systemctl restart kubelet  
+sudo systemctl restart docker  
+sudo systemctl restart kube-apiserver  
+sudo systemctl restart kube-controller-manager  
+sudo systemctl restart kube-scheduler
 
 ```
 
