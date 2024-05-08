@@ -276,8 +276,6 @@ for i in calico/cni:v3.25.0 calico/pod2daemon-flexvol:v3.25.0 calico/node:v3.25.
 kubectl apply -f calico.yaml
 ```
 
-
-
 ## 2. worker重置
 
 1. 在准备移除的 worker 节点上执行
@@ -301,7 +299,15 @@ kubectl delete node demo-worker-x-x
 > 将 demo-worker-x-x 替换为要移除的 worker 节点的名字
 > worker 节点的名字可以通过在节点master上执行 kubectl get nodes 命令获得
 
-## 3. calico删除
+## 3. calico安装和删除
+
+
+
+### 3.1 calico安装
+
+
+
+### 3.2 calico删除
 
 master执行
 
@@ -314,6 +320,241 @@ modprobe -r ipip
 
 // 删除配置文件
 查看 /etc/cni/net.d/ 目录下是否存在相关文件，如：10-calico.conflist， calico-kubeconfig，calico-tls等，需要删除。
+```
+
+## 4. flannel安装和删除
+
+### 4.1 flannel安装
+
+kube-flannel.ym文件内容
+
+```yaml
+---
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: kube-flannel
+  labels:
+    k8s-app: flannel
+    pod-security.kubernetes.io/enforce: privileged
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    k8s-app: flannel
+  name: flannel
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes/status
+  verbs:
+  - patch
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    k8s-app: flannel
+  name: flannel
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: flannel
+subjects:
+- kind: ServiceAccount
+  name: flannel
+  namespace: kube-flannel
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-app: flannel
+  name: flannel
+  namespace: kube-flannel
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kube-flannel-cfg
+  namespace: kube-flannel
+  labels:
+    tier: node
+    k8s-app: flannel
+    app: flannel
+data:
+  cni-conf.json: |
+    {
+      "name": "cbr0",
+      "cniVersion": "0.3.1",
+      "plugins": [
+        {
+          "type": "flannel",
+          "delegate": {
+            "hairpinMode": true,
+            "isDefaultGateway": true
+          }
+        },
+        {
+          "type": "portmap",
+          "capabilities": {
+            "portMappings": true
+          }
+        }
+      ]
+    }
+  net-conf.json: |
+    {
+      "Network": "10.244.0.0/16",
+      "EnableNFTables": false,
+      "Backend": {
+        "Type": "vxlan"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-flannel-ds
+  namespace: kube-flannel
+  labels:
+    tier: node
+    app: flannel
+    k8s-app: flannel
+spec:
+  selector:
+    matchLabels:
+      app: flannel
+  template:
+    metadata:
+      labels:
+        tier: node
+        app: flannel
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      serviceAccountName: flannel
+      initContainers:
+      - name: install-cni-plugin
+        image: docker.io/flannel/flannel-cni-plugin:v1.4.1-flannel1
+        command:
+        - cp
+        args:
+        - -f
+        - /flannel
+        - /opt/cni/bin/flannel
+        volumeMounts:
+        - name: cni-plugin
+          mountPath: /opt/cni/bin
+      - name: install-cni
+        image: docker.io/flannel/flannel:v0.25.1
+        command:
+        - cp
+        args:
+        - -f
+        - /etc/kube-flannel/cni-conf.json
+        - /etc/cni/net.d/10-flannel.conflist
+        volumeMounts:
+        - name: cni
+          mountPath: /etc/cni/net.d
+        - name: flannel-cfg
+          mountPath: /etc/kube-flannel/
+      containers:
+      - name: kube-flannel
+        image: docker.io/flannel/flannel:v0.25.1
+        command:
+        - /opt/bin/flanneld
+        args:
+        - --ip-masq
+        - --kube-subnet-mgr
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "50Mi"
+        securityContext:
+          privileged: false
+          capabilities:
+            add: ["NET_ADMIN", "NET_RAW"]
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: EVENT_QUEUE_DEPTH
+          value: "5000"
+        volumeMounts:
+        - name: run
+          mountPath: /run/flannel
+        - name: flannel-cfg
+          mountPath: /etc/kube-flannel/
+        - name: xtables-lock
+          mountPath: /run/xtables.lock
+      volumes:
+      - name: run
+        hostPath:
+          path: /run/flannel
+      - name: cni-plugin
+        hostPath:
+          path: /opt/cni/bin
+      - name: cni
+        hostPath:
+          path: /etc/cni/net.d
+      - name: flannel-cfg
+        configMap:
+          name: kube-flannel-cfg
+      - name: xtables-lock
+        hostPath:
+          path: /run/xtables.lock
+          type: FileOrCreate
+```
+
+
+
+配置文件上传到服务器后执行下列指令
+
+```
+kubectl apply -f kube-flannel.yml
+```
+
+### 4.2 flannel删除
+
+```shell
+// master执行
+kubectl delete -f  kube-flannel.yml
+
+// 
 ```
 
 
@@ -330,11 +571,11 @@ https://blog.csdn.net/xingzuo_1840/article/details/119580448
 // 查看node日志
 kubectl describe node node-name
 
-// 查看pod日志
+// 查看pod日志（注意-n是指定namespace）
 kubectl -n kube-system describe pod “pod-name”
 
-// 查看pod状态
-kubectl describe pod calico-node-zm27t -n kube-system
+// 罗列当前所有pod
+kubectl get pods
 
 // kubelet日志查看
 journalctl -u kubelet
@@ -346,5 +587,7 @@ sudo systemctl restart kube-apiserver
 sudo systemctl restart kube-controller-manager  
 sudo systemctl restart kube-scheduler
 
+// docker查看所有镜像
+docker image ls
 ```
 
