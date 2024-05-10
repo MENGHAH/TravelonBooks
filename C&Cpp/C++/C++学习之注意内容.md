@@ -7,6 +7,51 @@
 - operator==，用于查找
 - 实现对应的hash类
 
+```cpp
+#include <iostream>
+#include <unordered_map>
+// 用于表示用户区域信息
+class UserRegion {
+public:
+    int country_id;
+    int province_id;
+    int isp_id;
+
+    bool operator==(const UserRegion& other) const {
+        return country_id == other.country_id && province_id == other.province_id &&
+               isp_id == other.isp_id;
+    }
+};
+
+struct HashUserRegion {
+    std::size_t operator()(const UserRegion& ur) const {
+        std::size_t h1 = std::hash<int>{}(ur.country_id);
+        std::size_t h2 = std::hash<int>{}(ur.province_id);
+        std::size_t h3 = std::hash<int>{}(ur.isp_id);
+        return h1 ^ (h2 << 1) ^ (h3 << 2);
+    }
+};
+
+int main() {
+    std::unordered_map<UserRegion, std::string, HashUserRegion> user_region_map = {
+            {{1, 1, 1}, "user1"},
+            {{1, 2, 1}, "user2"},
+            {{2, 1, 2}, "user3"}
+    };
+    UserRegion test = {1, 1, 1};
+    if (user_region_map.find(test) != user_region_map.end()) {
+        std::cout << user_region_map[test] << std::endl;
+    }
+    // 遍历 unordered_map
+    for (auto it = user_region_map.begin(); it != user_region_map.end(); ++it) {
+        const UserRegion &ur = it->first;
+        const std::string &user_name = it->second;
+        std::cout << user_name << std::endl;
+    }
+    return 0;
+}
+```
+
 如果想让想让类对象作为std::map的key的话需要添加一个条件：
 
 - operator<，用于查找
@@ -143,6 +188,12 @@ int main(){
 }
 ```
 
+### 5.1 类模板继承需要注意点
+
+- 类模板派生类模板：从父类模板继承过来的成员函数无法直接使用，需要通过this指针、类名直接调用、或者using指明等方法使用
+
+- 类模板派生普通类：如果子类不是模板类，需要指明父类的具体类型
+
 ## 6. 纯虚函数
 
 纯虚函数是在基类中声明的虚函数，它在基类中没有定义，但要求任何派生类都要定义自己的实现方法。在基类中实现纯虚函数的方法是在函数原型后加 **=0**:
@@ -158,3 +209,50 @@ virtual void funtion1()=0
 
 ## 7. =default 和 =delete
 
+### 7.1 =delete
+
+- 用于显式地删除一个成员函数的定义。
+- 当类中的某个成员函数被声明为 =delete 时,编译器将不会为该函数生成定义,也不允许在程序中调用该函数。
+- 这通常用于禁止特定的操作,例如禁止拷贝构造函数或赋值操作符。
+
+```cpp
+class MyClass {
+public:
+    MyClass(int i) { /* ... */ }
+    MyClass(const MyClass&) = delete; // 禁止拷贝构造函数
+    MyClass& operator=(const MyClass&) = delete; // 禁止赋值操作符
+};
+```
+
+### 7.2 =default
+
+- 用于要求编译器自动生成一个成员函数的默认实现。
+- 当类中的某个成员函数被声明为 =default 时,编译器将为该函数生成一个合适的默认实现,而不需要程序员手动编写。
+- 这通常用于恢复编译器自动生成的特殊成员函数,例如默认构造函数、拷贝构造函数、赋值操作符等。
+
+```cpp
+class MyClass {
+public:
+    MyClass() = default; // 使用编译器生成的默认构造函数
+    MyClass(const MyClass&) = default; // 使用编译器生成的默认拷贝构造函数
+    MyClass& operator=(const MyClass&) = default; // 使用编译器生成的默认赋值操作符
+};
+
+```
+
+## 8. 右值引用
+
+**(1)右值是什么?**
+
+- 在 C++ 中,所有的表达式都有一个左值(lvalue)和一个右值(rvalue)。
+- 左值代表一个可以被赋值的对象,它有一个确定的内存地址。
+- 而右值代表一个临时的、无法被直接赋值的值。
+
+**(2) 右值引用是什么?**
+右值引用使用 && 来声明,它允许绑定到一个右值。通过使用右值引用,可以避免不必要的复制操作,从而提高程序的性能。
+
+**(3) 右值引用的使用场景**
+
+- 移动语义(Move Semantics)：可以通过右值引用实现移动语义,将资源从一个对象转移到另一个对象,而不是进行深拷贝。这对于大对象来说可以带来显著的性能提升。
+- 完美转发(Perfect Forwarding)：可以使用右值引用来实现完美转发,确保参数以原始类型被传递到函数中。这对于泛型编程很有帮助。
+- 自定义类型的优化：对于自定义的类型,你可以利用右值引用来实现针对性的优化,比如资源管理、内存分配等。
