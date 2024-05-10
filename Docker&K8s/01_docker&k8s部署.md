@@ -557,6 +557,13 @@ kubectl delete -f  kube-flannel.yml
 // 
 ```
 
+## 5. 时间同步
+
+https://blog.51cto.com/u_15065790/9522740
+
+```
+```
+
 
 
 # temp
@@ -589,5 +596,17 @@ sudo systemctl restart kube-scheduler
 
 // docker查看所有镜像
 docker image ls
+
+// 正在运行的镜像
+docker ps
+```
+
+## 报错及解决
+
+```Shell
+error pulling image configuration: Get "https://production.cloudflare.docker.com/registry-v2/docker/registry/v2/blobs/sha256/1e/1e3c860c213d6f604818ae1ee84f066ed33fdb023c47607032cf5fe8c4174637/data?verify=1715239617-UJ7IzQDUl%2B9TEVxJWs6bzBhovZU%3D": x509: certificate has expired or is not yet valid: current time 2024-05-09T14:34:27+08:00 is after 2021-09-30T14:01:15Z
+
+将master上flannel插件相关镜像导出，在worker节点导入。
+
 ```
 

@@ -143,8 +143,6 @@ select no from student where no = 'test'
 - 主键索引最好是自增的；
 - 防止索引失效；
 
-
-
 # 4. 事务及隔离级别
 
 https://mp.weixin.qq.com/s/WIqoR0-l7h9SObIzmGDatQ
@@ -639,7 +637,9 @@ show create table 表名; 查看创建表的详细信息
 
 ### 增删改查
 
-**(1) 插入**
+#### **插入**&删除&更新
+
+**插入**
 
 ```sql
 insert into 表名 values(值1，值2，...)(很少用)
@@ -653,19 +653,19 @@ insert into 表名(字段1，字段2...) values(值1，值2，....);（较常用
 insert into 表名(字段1，字段2...) values(值1，值2，....)，(值1，值2，....)，(值1，值2，....);
 ```
 
-**(2) 删除**
+**删除**
 
 ```sql
 (delete) delete from 表名 where 条件 注意：where 条件必须加，否则数据会被全部删除
 ```
 
-**(3) 更新**
+**更新**
 
 ```sql
 update 表名 set字段1 = 值1, 字段2 = 值2 where 条件
 ```
 
-**(4) 查询**
+#### **查询**
 
 **1)普通查询**
 
@@ -673,14 +673,15 @@ update 表名 set字段1 = 值1, 字段2 = 值2 where 条件
 查询表中的所有数据   select * from 表名
 指定数据查询        select 字段 from 表名 
 根据条件查询出来的数据  select 字段 from 表名 where 条件 (最常用的)
-
-排序：      select 字段 from 表 order by 字段 排序关键词(desc|asc)
-多字段排序： select 字段 from 表 order by 字段1  desc|asc, ..., 字段n desc|asc;
  
 ​ where 条件后面跟的条件
 ​ 关系：>,<,>=,<=,!= (注意最左匹配原则)
 ​ 逻辑：or, and
 ​ 区间：id between 4 and 6 ;闭区间，包含边界
+
+查询结果排序：       select 字段 from 表 order by 字段 排序关键词(desc|asc)
+查询结果多字段排序：  select 字段 from 表 order by 字段1  desc|asc, ..., 字段n desc|asc;
+限制查询结果展示量： 	select * from 表名  limit 偏移量,数量; // 偏移量默认为0
 ```
 
 **2)常用的统计函数 sum，avg，count，max,min**
@@ -691,5 +692,285 @@ update 表名 set字段1 = 值1, 字段2 = 值2 where 条件
 分组统计:  select count(sex) from star group by sex;
 ```
 
+#### **分组查询-group by**
 
+```sql
+SELECT column_name, function(column_name)
+FROM table_name
+WHERE column_name operator value
+GROUP BY column_name;
+```
 
+```sql
+mysql> SELECT * FROM employee_tbl;
++----+--------+---------------------+--------+
+| id | name   | date                | singin |
++----+--------+---------------------+--------+
+|  1 | 小明 | 2016-04-22 15:25:33 |      1 |
+|  2 | 小王 | 2016-04-20 15:25:47 |      3 |
+|  3 | 小丽 | 2016-04-19 15:26:02 |      2 |
+|  4 | 小王 | 2016-04-07 15:26:14 |      4 |
+|  5 | 小明 | 2016-04-11 15:26:40 |      4 |
+|  6 | 小明 | 2016-04-04 15:26:54 |      2 |
++----+--------+---------------------+--------+
+6 rows in set (0.00 sec)
+
+mysql> SELECT name, COUNT(*) FROM employee_tbl GROUP BY name;
++--------+----------+
+| name   | COUNT(*) |
++--------+----------+
+| 小丽 |        1 |
+| 小明 |        3 |
+| 小王 |        2 |
++--------+----------+
+3 rows in set (0.01 sec)
+```
+
+#### **组合查询-union**
+
+MySQL `UNION` 操作符用于连接两个以上的 SELECT 语句的结果组合到一个结果集合中。多个 SELECT 语句会删除重复的数据。
+
+```sql
+SELECT expression1, expression2, ... expression_n
+FROM tables
+[WHERE conditions]
+UNION [ALL | DISTINCT]
+SELECT expression1, expression2, ... expression_n
+FROM tables
+[WHERE conditions];
+```
+
+使用举例：从下述两张表中统计出所有出现的country
+```sql
+SELECT * FROM Websites;
++----+--------------+---------------------------+-------+---------+
+| id | name         | url                       | alexa | country |
++----+--------------+---------------------------+-------+---------+
+| 1  | Google       | https://www.google.cm/    | 1     | USA     |
+| 2  | 淘宝          | https://www.taobao.com/   | 13    | CN      |
+| 3  | 菜鸟教程      | http://www.runoob.com/    | 4689  | CN      |
+| 4  | 微博          | http://weibo.com/         | 20    | CN      |
+| 5  | Facebook     | https://www.facebook.com/ | 3     | USA     |
+| 7  | stackoverflow | http://stackoverflow.com/ |   0 | IND     |
++----+---------------+---------------------------+-------+---------+
+
+ SELECT * FROM apps;
++----+------------+-------------------------+---------+
+| id | app_name   | url                     | country |
++----+------------+-------------------------+---------+
+|  1 | QQ APP     | http://im.qq.com/       | CN      |
+|  2 | 微博 APP | http://weibo.com/       | CN      |
+|  3 | 淘宝 APP | https://www.taobao.com/ | CN      |
++----+------------+-------------------------+---------+
+```
+查询语句及结果
+```sql
+# 查询条件及结果1：
+SELECT country FROM Websites
+UNION
+SELECT country FROM apps
+ORDER BY country;
+
+# 结果：
++----+
+| country | 
++----+-
+|  CN  | 
+|  IND | 
+|  USA | 
++----+
+
+# 查询条件及结果2：
+SELECT country FROM Websites
+UNION ALL
+SELECT country FROM apps
+ORDER BY country;
+
+# 结果：
++----+
+| country | 
++----+-
+|  CN  | 
+|  CN  | 
+|  CN  | 
+|  CN  | 
+|  CN  | 
+|  IND | 
+|  USA | 
+|  USA | 
+|  USA | 
++----+
+```
+
+#### 表联合查询-join
+
+在RUNOOB数据库中有两张表 tcount_tbl 和 runoob_tbl。两张数据表数据如下：
+
+```sql
+mysql> use RUNOOB;
+Database changed
+mysql> SELECT * FROM tcount_tbl;
++---------------+--------------+
+| runoob_author | runoob_count |
++---------------+--------------+
+| 菜鸟教程  | 10           |
+| RUNOOB.COM    | 20           |
+| Google        | 22           |
++---------------+--------------+
+3 rows in set (0.01 sec)
+ 
+mysql> SELECT * from runoob_tbl;
++-----------+---------------+---------------+-----------------+
+| runoob_id | runoob_title  | runoob_author | submission_date |
++-----------+---------------+---------------+-----------------+
+| 1         | 学习 PHP    | 菜鸟教程  | 2017-04-12      |
+| 2         | 学习 MySQL  | 菜鸟教程  | 2017-04-12      |
+| 3         | 学习 Java   | RUNOOB.COM    | 2015-05-01      |
+| 4         | 学习 Python | RUNOOB.COM    | 2016-03-06      |
+| 5         | 学习 C      | FK            | 2017-04-05      |
++-----------+---------------+---------------+-----------------+
+5 rows in set (0.01 sec)
+```
+
+4.1 INNER JOIN（内连接,或等值连接）
+![img](E:\03_常用文件\TravelonBooks\数据存储\MySQL\MySQL基础总结.assets\1196462-20191225004446903-1068184925.gif)
+
+```sql
+mysql> SELECT a.runoob_id, a.runoob_author, b.runoob_count FROM runoob_tbl a INNER JOIN tcount_tbl b ON a.runoob_author = b.runoob_author;
++-------------+-----------------+----------------+
+| a.runoob_id | a.runoob_author | b.runoob_count |
++-------------+-----------------+----------------+
+| 1           | 菜鸟教程    | 10             |
+| 2           | 菜鸟教程    | 10             |
+| 3           | RUNOOB.COM      | 20             |
+| 4           | RUNOOB.COM      | 20             |
++-------------+-----------------+----------------+
+4 rows in set (0.00 sec)
+```
+
+4.2 LEFT JOIN（左连接）
+![img](E:\03_常用文件\TravelonBooks\数据存储\MySQL\MySQL基础总结.assets\1196462-20191225004459480-1473356142.gif)
+
+```sql
+mysql> SELECT a.runoob_id, a.runoob_author, b.runoob_count FROM runoob_tbl a LEFT JOIN tcount_tbl b ON a.runoob_author = b.runoob_author;
++-------------+-----------------+----------------+
+| a.runoob_id | a.runoob_author | b.runoob_count |
++-------------+-----------------+----------------+
+| 1           | 菜鸟教程    | 10             |
+| 2           | 菜鸟教程    | 10             |
+| 3           | RUNOOB.COM      | 20             |
+| 4           | RUNOOB.COM      | 20             |
+| 5           | FK              | NULL           |
++-------------+-----------------+----------------+
+5 rows in set (0.01 sec)
+```
+
+4.3 RIGHT JOIN（右连接）
+![img](E:\03_常用文件\TravelonBooks\数据存储\MySQL\MySQL基础总结.assets\1196462-20191225004509099-1149596663.gif)
+
+```sql
+mysql> SELECT a.runoob_id, a.runoob_author, b.runoob_count FROM runoob_tbl a RIGHT JOIN tcount_tbl b ON a.runoob_author = b.runoob_author;
++-------------+-----------------+----------------+
+| a.runoob_id | a.runoob_author | b.runoob_count |
++-------------+-----------------+----------------+
+| 1           | 菜鸟教程    | 10             |
+| 2           | 菜鸟教程    | 10             |
+| 3           | RUNOOB.COM      | 20             |
+| 4           | RUNOOB.COM      | 20             |
+| NULL        | NULL            | 22             |
++-------------+-----------------+----------------+
+5 rows in set (0.01 sec)
+```
+
+## 事务
+
+## 索引
+
+### 普通索引
+
+**创建索引**
+
+这是最基本的索引，它没有任何限制。它有以下几种创建方式：
+
+```scss
+CREATE INDEX indexName ON mytable(username(length)); 
+```
+
+如果是CHAR，VARCHAR类型，length可以小于字段实际长度；如果是BLOB和TEXT类型，必须指定 length。
+
+**修改表结构(添加索引)**
+
+```sql
+ALTER table tableName ADD INDEX indexName(columnName)
+```
+
+**创建表的时候直接指定**
+
+```sql
+CREATE TABLE mytable(  
+ 
+ID INT NOT NULL,   
+ 
+username VARCHAR(16) NOT NULL,  
+ 
+INDEX [indexName] (username(length))  
+ 
+);  
+```
+
+**删除索引的语法**
+
+```delphi
+DROP INDEX [indexName] ON mytable; 
+```
+
+### 唯一索引
+
+它与前面的普通索引类似，不同的就是：索引列的值必须唯一，但允许有空值。如果是组合索引，则列值的组合必须唯一。它有以下几种创建方式：
+
+**创建索引**
+
+```scss
+CREATE UNIQUE INDEX indexName ON mytable(username(length)) 
+```
+
+**修改表结构**
+
+```sql
+ALTER table mytable ADD UNIQUE [indexName] (username(length))
+```
+
+**创建表的时候直接指定**
+
+```sql
+CREATE TABLE mytable(  
+ 
+ID INT NOT NULL,   
+ 
+username VARCHAR(16) NOT NULL,  
+ 
+UNIQUE [indexName] (username(length))  
+ 
+);  
+```
+
+### 使用ALTER 命令添加和删除索引
+
+有四种方式来添加数据表的索引：
+
+- **ALTER TABLE tbl_name ADD PRIMARY KEY (column_list):**该语句添加一个主键，这意味着索引值必须是唯一的，且不能为NULL。
+- **ALTER TABLE tbl_name ADD UNIQUE index_name (column_list):** 这条语句创建索引的值必须是唯一的（除了NULL外，NULL可能会出现多次）。
+- **ALTER TABLE tbl_name ADD INDEX index_name (column_list):** 添加普通索引，索引值可出现多次。
+- **ALTER TABLE tbl_name ADD FULLTEXT index_name (column_list):**该语句指定了索引为 FULLTEXT ，用于全文索引。
+
+以下实例为在表中添加索引。
+
+```sql
+mysql> ALTER TABLE testalter_tbl ADD INDEX (c);
+```
+
+你还可以在 ALTER 命令中使用 DROP 子句来删除索引。尝试以下实例删除索引:
+
+```sql
+mysql> ALTER TABLE testalter_tbl DROP INDEX c;
+```
