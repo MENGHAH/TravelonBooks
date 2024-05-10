@@ -1,5 +1,7 @@
 # 1. MySQL语句执行的过程
 
+## 1.1 MySQL语句的执行
+
 > 以select语句的执行为例
 
 ![查询语句执行流程](https://cdn.xiaolincoding.com/gh/xiaolincoder/mysql/sql%E6%89%A7%E8%A1%8C%E8%BF%87%E7%A8%8B/mysql%E6%9F%A5%E8%AF%A2%E6%B5%81%E7%A8%8B.png)
@@ -9,23 +11,23 @@ MySQL主要分为两层：**Server层和存储引擎**
 - **Server 层负责建立连接、分析和执行 SQL**。MySQL 大多数的核心功能模块都在这实现，主要包括连接器，查询缓存、解析器、预处理器、优化器、执行器等。另外，所有的内置函数（如日期、时间、数学和加密函数等）和所有跨存储引擎的功能（如存储过程、触发器、视图等。）都在 Server 层实现。
 - **存储引擎层负责数据的存储和提取**。支持 InnoDB、MyISAM、Memory 等多个存储引擎，不同的存储引擎共用一个 Server 层。现在最常用的存储引擎是 InnoDB，我们常说的索引数据结构，就是由存储引擎层实现的。
 
-## 1.1 连接器
+### 1.1.1 连接器
 
 客户端发起连接请求，底层走TCP协议建立长连接（一个MySQL连接默认有效时间是8h，由`wait_timeout` 参数控制）
 
 > MySQL连接也分长连接和短连接
 
-## 1.2 缓存查询
+### 1.1.2 缓存查询
 
 如果查询的语句命中查询缓存，那么就会直接返回 value 给客户端。如果查询的语句没有命中查询缓存中，那么就要往下继续执行，等执行完后，查询的结果就会被存入查询缓存中。
 
 但是当对表有更新时，缓存就会失效。所以这种缓存的实用性比较低，在MySQL 8.0版本后就舍弃了。
 
-## 1.3 解析 SQL
+### 1.1.3 解析 SQL
 
 在正式执行 SQL 查询语句之前， MySQL 会先对 SQL 语句做解析，这个工作交由**解析器**来完成。**解析器**主要完成两件事：**词法分析**和**语法分析**。
 
-## 1.4 执行 SQL
+### 1.1.4 执行 SQL
 
 经过解析器后，接着就要进入执行 SQL 查询语句的流程了，每条`SELECT` 查询语句流程主要可以分为下面这三个阶段：
 
@@ -49,6 +51,10 @@ MySQL主要分为两层：**Server层和存储引擎**
 - 主键索引查询
 - 全表扫描
 - 索引下推
+
+## 1.2 MySQL数据存储
+
+
 
 # 2. B+树
 
@@ -118,7 +124,7 @@ select no from student where no = 'test'
 
 ## 3.2 最左匹配原则
 
-**最左匹配原则：**如果SQL 语句中用到了联合索引中的最左边的索引，那么这条 SQL 语句就可以利用这个联合索引去进行匹配，值得注意的是，**当遇到范围查询(>、<、between、like)就会停止匹配。**但是如果查询条件中没有使用到最左边的索引，整个联合索引就会**失效**。
+**最左匹配原则：**如果SQL 语句中用到了联合索引中的最左边的索引，那么这条 SQL 语句就可以利用这个联合索引去进行匹配，但是**当遇到范围查询(>、<、between、like)就会停止匹配。**如果查询条件中没有使用到最左边的索引，整个联合索引就会**失效**。
 
 例如：如果建立(a,b)顺序的索引，我们的条件只有b=xxx，是匹配不到(a,b)索引的；但是如果查询条件是a = 1 and b = 2或者b=2 and a=1就可以，因为优化器会自动调整a,b的顺序，并不需要严格按照索引的顺序来；再比如a = 1 and b = 2 and c > 3 and d = 4 如果建立(a,b,c,d)顺序的索引，d是用不到索引的，因为c字段是一个范围查询，它之后的字段会停止匹配。
 
@@ -591,3 +597,99 @@ MySQL分库分表是一种数据库分割和划分数据表的技术。它将原
 ## (5) 常见分库分表中间件
 
 常见的分库分表中间件包括MyCAT、Atlas、ShardingSphere等。这些中间件可以提供高性能的分库分表功能，并且具有一些自动化的管理工具和特性。
+
+
+
+# MySQL 常用语句
+
+## 常用操作数据库命令
+
+```sql
+show databases; 查看所有的数据库
+create database test; 创建一个叫test的数据库
+drop database test;删除一个叫test的数据库
+use test;选中库 ,在建表之前必须要选择数据库
+show tables; 在选中的数据库之中查看所有的表
+
+create table 表名 (字段1 类型, 字段2 类型);
+例如：CREATE TABLE tbl(
+        id INT NOT NULL AUTO_INCREMENT, 
+        title VARCHAR(100) NOT NULL, 
+        author VARCHAR(40) NOT NULL, 
+        date DATE, 
+        PRIMARY KEY ( id ))ENGINE=InnoDB DEFAULT CHARSET=utf8; 
+        
+desc 表名;查看所在的表的字段
+drop table 表名; 删除表
+show create databases 库名;查看创建库的详细信息
+show create table 表名; 查看创建表的详细信息
+```
+
+## 修改表命令
+
+```sql
+修改字段类型： alter table 表名 modify 字段 字段类型;
+添加新的字段： alter table 表名 add 字段 字段类型;
+添加字段并指定位置：  alter table 表名 add 字段 字段类型 after 字段;
+删除表字段：  alter table 表名 drop 字段名;
+修改指定的字段：  alter table 表名 change 原字段名字 新的字段名字 字段类型;
+```
+
+## 对数据操作
+
+### 增删改查
+
+**(1) 插入**
+
+```sql
+insert into 表名 values(值1，值2，...)(很少用)
+
+insert into 表名(字段1，字段2...) values(值1，值2，....);（较常用）
+例如：INSERT INTO tbl 
+    (title, author, date)
+    VALUES
+    ("学习 PHP", "菜鸟", NOW());
+    
+insert into 表名(字段1，字段2...) values(值1，值2，....)，(值1，值2，....)，(值1，值2，....);
+```
+
+**(2) 删除**
+
+```sql
+(delete) delete from 表名 where 条件 注意：where 条件必须加，否则数据会被全部删除
+```
+
+**(3) 更新**
+
+```sql
+update 表名 set字段1 = 值1, 字段2 = 值2 where 条件
+```
+
+**(4) 查询**
+
+**1)普通查询**
+
+```sql
+查询表中的所有数据   select * from 表名
+指定数据查询        select 字段 from 表名 
+根据条件查询出来的数据  select 字段 from 表名 where 条件 (最常用的)
+
+排序：      select 字段 from 表 order by 字段 排序关键词(desc|asc)
+多字段排序： select 字段 from 表 order by 字段1  desc|asc, ..., 字段n desc|asc;
+ 
+​ where 条件后面跟的条件
+​ 关系：>,<,>=,<=,!= (注意最左匹配原则)
+​ 逻辑：or, and
+​ 区间：id between 4 and 6 ;闭区间，包含边界
+```
+
+**2)常用的统计函数 sum，avg，count，max,min**
+
+```sql
+只分组:   select * from 表 group by 字段
+例子:     select count(sex) as re,sex from star group by sex having re > 3;
+分组统计:  select count(sex) from star group by sex;
+```
+
+
+
