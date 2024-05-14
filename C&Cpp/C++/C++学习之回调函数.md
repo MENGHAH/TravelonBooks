@@ -4,6 +4,8 @@
 
 
 
+
+
 ## 2. std::bind
 
 
@@ -14,48 +16,69 @@
 
 
 
-# 基于C++11新特性的回调函数实现
+# 基于std::function回调函数实现
 
 ```c++
-#include <iostream>
-#include <functional>
-#include <vector>
-#include <assert.h>
+#include <iostream>  
+#include <functional>  
 
 using namespace std;
+using namespace std::placeholders;
 
-double callableFunc (double x, double y) 
-{
-    return x/y;
-}
+typedef std::function<void(int, int)> static_func_cpp11;
+typedef std::function<void(int, int)> func_cpp11_callback;
 
-
-class Base{
+class CallbackWrapper {
 public:
-    int func_sum(int x, int y, int z)
+    static void static_callback(int a, int b)
     {
-        std::cout << x << std::endl;
-        std::cout << y << std::endl;
-        std::cout << z << std::endl;
-        return x + y + z;
+        cout << "Static callback() was called!" << endl;
     }
 
-    int m_data = 30;
+    void callback(int a, int b)
+    {
+        cout << "callback() was called!" << endl;
+    }
+
+    void virtual virtual_callback(int a, int b)
+    {
+        cout << "virtual callback() was called!" << endl;
+    }
+
 };
 
+class CallbackWrapper2 : public CallbackWrapper {
+
+    void virtual_callback(int a, int b)
+    {
+        cout << "CallbackWrapper2 virtual callback() was called!" << endl;
+    }
+
+};
+
+void call_func(int a, int b, std::function<void(int, int)> func)
+{
+    cout << "call func:";
+    func(1, 2);
+}
 
 int main()
 {
-    // 绑定一个普通函数
-    auto NewCallable = std::bind (callableFunc, std::placeholders::_1, 2); // 绑定普通函数
-    std::cout << NewCallable (10) << '\n';  
+    CallbackWrapper callbackWrapper;
+    CallbackWrapper2 callbackWrapper2;
 
-    Base base;
-    // 绑定类中的一个成员函数
-    auto newiFunc = std::bind(&Base::func_sum, &base, 100, std::placeholders::_1, std::placeholders::_2);
-    int res = newiFunc(20, 100);
-    std::cout << res << std::endl;
+    //C++11 static
+    static_func_cpp11 static_callback_ = std::bind(&CallbackWrapper::static_callback, _1, _2);
+    static_callback_(1, 2);
+    call_func(1, 2, static_callback_);
+    cout << "*********************************" << endl;
 
+    //C++11 non static
+    func_cpp11_callback callback_ = std::bind(&CallbackWrapper::callback, &callbackWrapper, std::placeholders::_1, std::placeholders::_2);
+    callback_(1, 2); // 回调函数直接调用
+    call_func(1, 2, callback_); // 回调函数作为参数
+    cout << "*********************************" << endl;
+    
     return 0;
 }
 ```
